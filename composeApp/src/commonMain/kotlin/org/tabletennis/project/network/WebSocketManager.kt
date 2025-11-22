@@ -24,7 +24,15 @@ data class CollisionEvent(
     val x: Float,
     val y: Float,
     val v: Float,
-    @SerialName("goal_x") val goalX: Float)
+    @SerialName("goal_x") val goalX: Float? = null)
+
+@Serializable
+data class CoordinatesEvent(
+    val x: Float,
+    val y: Float,
+    val v: Float
+    // @SerialName("goal_x") val goalX: Float? = null
+)
 
 @Serializable
 data class WebSocketMessage(
@@ -42,6 +50,9 @@ class WebSocketManager {
 
     private val _collisionEvent = MutableStateFlow<CollisionEvent?>(null)
     val collisionEvent: StateFlow<CollisionEvent?> = _collisionEvent
+
+    private val _coordinatesEvent = MutableStateFlow<CoordinatesEvent?>(null)
+    val coordinatesEvent: StateFlow<CoordinatesEvent?> = _coordinatesEvent
 
     private val client = HttpClient {
         install(WebSockets)
@@ -86,6 +97,16 @@ class WebSocketManager {
 
                                     _collisionEvent.value = event
                                     println("Parsed Collision: $event")
+                            }} else if (message.contains("coordinates")) {
+                                val rootObject = json.parseToJsonElement(message).jsonObject
+
+                                val dataObject = rootObject["data"]
+
+                                if (dataObject != null) {
+                                    val event = json.decodeFromJsonElement<CoordinatesEvent>(dataObject)
+
+                                    _coordinatesEvent.value = event
+                                    println("Parsed Coordinates: $event")
                             }}
                         }
                     }
