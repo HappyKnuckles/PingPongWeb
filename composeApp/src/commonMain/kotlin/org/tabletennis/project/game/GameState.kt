@@ -1,7 +1,13 @@
 package org.tabletennis.project.game
 
-// Datenklasse für den Spielzustand
-data class GameState(
+
+enum class GameState {
+    PLAYER_SELECTION,
+    WAITING,
+    PLAYING
+}
+
+data class GameElements(
     val ballX: Float = 0f,
     val ballY: Float = 0f,
     val player1Y: Float = 0f,
