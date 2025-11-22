@@ -9,6 +9,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.tabletennis.project.game.GameFlow
+import org.tabletennis.project.game.PingPongTable
+
+/**
+ * Development mode flag
+ * Set to true to show only the PingPongTable for development
+ * Set to false to show the full GameFlow for normal usage
+ */
+private const val DEVELOPMENT_MODE = true
 
 @Composable
 @Preview
@@ -19,7 +27,11 @@ fun App() {
                 .fillMaxSize()
                 .background(Color(0xFF222222))
         ) {
-            GameFlow()
+            if (DEVELOPMENT_MODE) {
+                PingPongTable()
+            } else {
+                GameFlow()
+            }
         }
     }
 }
