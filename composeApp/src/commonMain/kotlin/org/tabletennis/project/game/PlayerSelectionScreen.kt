@@ -35,7 +35,7 @@ fun PlayerSelectionScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            "Tischtennis Online",
+            "Ping Pong Online",
             fontSize = 36.sp,
             color = Color.White,
             fontWeight = FontWeight.Bold
@@ -44,7 +44,7 @@ fun PlayerSelectionScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            "Wähle deinen Spieler",
+            "Choose your Player",
             fontSize = 24.sp,
             color = Color.White,
             fontWeight = FontWeight.Normal
@@ -55,7 +55,7 @@ fun PlayerSelectionScreen(
         Button(
             onClick = {
                 isConnecting = true
-                selectedPlayerLabel = "Spieler 1"
+                selectedPlayerLabel = "Player 1"
                 webSocketManager.connect("host1")
                 onPlayerSelected(1)
             },
@@ -69,7 +69,7 @@ fun PlayerSelectionScreen(
                 .height(60.dp)
         ) {
             Text(
-                if (isConnecting && selectedPlayerLabel == "Spieler 1") "Verbinde..." else "Spieler 1 (Unten)",
+                if (isConnecting && selectedPlayerLabel == "Player 1") "Connecting..." else "Player 1",
                 fontSize = 18.sp
             )
         }
@@ -79,7 +79,7 @@ fun PlayerSelectionScreen(
         Button(
             onClick = {
                 isConnecting = true
-                selectedPlayerLabel = "Spieler 2"
+                selectedPlayerLabel = "Player 2"
                 webSocketManager.connect("host2")
                 onPlayerSelected(2)
             },
@@ -93,7 +93,7 @@ fun PlayerSelectionScreen(
                 .height(60.dp)
         ) {
             Text(
-                if (isConnecting && selectedPlayerLabel == "Spieler 2") "Verbinde..." else "Spieler 2 (Oben)",
+                if (isConnecting && selectedPlayerLabel == "Player 2") "Connecting..." else "Player 2",
                 fontSize = 18.sp
             )
         }
@@ -101,7 +101,7 @@ fun PlayerSelectionScreen(
         Spacer(modifier = Modifier.height(40.dp))
 
         Text(
-            "Hinweis: Das Spiel startet automatisch, sobald beide Spieler verbunden sind.",
+            "Info: The game starts automatically once both players are connected.",
             fontSize = 14.sp,
             color = Color.Yellow.copy(alpha = 0.7f),
             textAlign = TextAlign.Center,

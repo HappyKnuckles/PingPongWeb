@@ -27,11 +27,11 @@ fun App() {
                 .fillMaxSize()
                 .background(Color(0xFF222222))
         ) {
-            if (DEVELOPMENT_MODE) {
-                PingPongTable()
-            } else {
+//            if (DEVELOPMENT_MODE) {
+//                PingPongTable()
+//            } else {
                 GameFlow()
-            }
+//            }
         }
     }
 }

@@ -46,7 +46,7 @@ fun WaitingScreen(playerNumber: Int) {
                     .fillMaxWidth()
             ) {
                 Text(
-                    "Du bist Spieler $playerNumber",
+                    "You are $playerNumber",
                     fontSize = 20.sp,
                     color = playerColor,
                     fontWeight = FontWeight.Bold
@@ -55,7 +55,7 @@ fun WaitingScreen(playerNumber: Int) {
                 Spacer(modifier = Modifier.height(20.dp))
                 
                 Text(
-                    "Warte auf zweiten Spieler...",
+                    "Waiting for second player...",
                     fontSize = 16.sp,
                     color = Color.White
                 )
@@ -69,16 +69,6 @@ fun WaitingScreen(playerNumber: Int) {
                 )
                 
                 Spacer(modifier = Modifier.height(24.dp))
-                
-                Text(
-                    when (playerNumber) {
-                        1 -> "Du spielst unten (rot)"
-                        2 -> "Du spielst oben (grün)"
-                        else -> ""
-                    },
-                    fontSize = 14.sp,
-                    color = Color.LightGray
-                )
             }
         }
     }
