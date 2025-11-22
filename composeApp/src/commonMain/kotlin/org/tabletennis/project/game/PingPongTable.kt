@@ -16,6 +16,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import org.tabletennis.project.network.WebSocketManager
+import androidx.compose.animation.core.*
+import androidx.compose.ui.geometry.Offset
+import kotlin.random.Random
 
 @Composable
 fun PingPongTable(
@@ -28,18 +31,85 @@ fun PingPongTable(
     var paddleY by remember { mutableStateOf(0f) }
     var opponentPaddleY by remember { mutableStateOf(0f) }
 
+    // Current ball position (animated)
     var ballX by remember { mutableStateOf(0f) }
     var ballY by remember { mutableStateOf(0f) }
+
+    // Target ball position (where the ball is moving to)
+    var targetBallX by remember { mutableStateOf(0f) }
+    var targetBallY by remember { mutableStateOf(0f) }
+
+    // Previous ball position (where the ball is moving from)
+    var previousBallX by remember { mutableStateOf(0f) }
+    var previousBallY by remember { mutableStateOf(0f) }
+
     var ballVelocity by remember { mutableStateOf(0f) }
+
+    // Animation progress (0.0 to 1.0)
+    val animationProgress = remember { Animatable(initialValue = 1f) }
+
+    // Control point for bezier curve (for curved ball paths)
+    var controlPointX by remember { mutableStateOf(0f) }
+    var controlPointY by remember { mutableStateOf(0f) }
+
+    // Whether to use a curved path for the current animation
+    var useCurvedPath by remember { mutableStateOf(false) }
 
     val collisionEvent by webSocketManager.collisionEvent.collectAsState()
 
     LaunchedEffect(collisionEvent) {
         collisionEvent?.let { event ->
             val (mappedX, mappedZ) = GameCoordinates.mapGameToTable(event.x, event.y)
-            ballX = mappedX
-            ballY = mappedZ
+
+            previousBallX = ballX
+            previousBallY = ballY
+
+            targetBallX = mappedX
+            targetBallY = mappedZ
             ballVelocity = event.v
+
+            useCurvedPath = Random.nextFloat() < 0.3f
+
+            if (useCurvedPath) {
+                val dx = targetBallX - previousBallX
+                val dy = targetBallY - previousBallY
+
+                val perpX = -dy
+                val perpY = dx
+
+                val length = kotlin.math.sqrt(perpX * perpX + perpY * perpY)
+                val scale = if (length > 0) Random.nextFloat() * 100f + 50f else 0f
+
+                controlPointX = (previousBallX + targetBallX) / 2f + (perpX / length) * scale
+                controlPointY = (previousBallY + targetBallY) / 2f + (perpY / length) * scale
+            }
+
+            animationProgress.snapTo(0f)
+            animationProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(
+                    durationMillis = (3000 / ballVelocity).toInt().coerceIn(300, 1500),
+                    easing = EaseInOutQuad
+                )
+            )
+        }
+    }
+
+    LaunchedEffect(animationProgress.value) {
+        if (useCurvedPath) {
+            val t = animationProgress.value
+            val oneMinusT = 1 - t
+
+            ballX = oneMinusT * oneMinusT * previousBallX +
+                    2 * oneMinusT * t * controlPointX +
+                    t * t * targetBallX
+
+            ballY = oneMinusT * oneMinusT * previousBallY +
+                    2 * oneMinusT * t * controlPointY +
+                    t * t * targetBallY
+        } else {
+            ballX = previousBallX + (targetBallX - previousBallX) * animationProgress.value
+            ballY = previousBallY + (targetBallY - previousBallY) * animationProgress.value
         }
     }
 
@@ -201,6 +271,30 @@ fun PingPongTable(
             drawLine(netTapeColor, pNetLeftTop, pNetRightTop, strokeWidth = 3f)
             drawLine(netTapeColor, pNetLeftBot, pNetRightBot, strokeWidth = 2f)
 
+            if (useCurvedPath && previousBallX != 0f && previousBallY != 0f && targetBallX != 0f && targetBallY != 0f) {
+                val controlPoint = GameCoordinates.project3DToScreen(
+                    controlPointX,
+                    30f,
+                    adjustZ(controlPointY),
+                    w, h
+                )
+
+                val startPoint = GameCoordinates.project3DToScreen(
+                    previousBallX,
+                    30f,
+                    adjustZ(previousBallY),
+                    w, h
+                )
+
+                val endPoint = GameCoordinates.project3DToScreen(
+                    targetBallX,
+                    30f,
+                    adjustZ(targetBallY),
+                    w, h
+                )
+            }
+
+            // Draw the ball
             if (ballX != 0f || ballY != 0f) {
                 val ballPos = GameCoordinates.project3DToScreen(
                     ballX,
