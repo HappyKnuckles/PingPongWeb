@@ -1,5 +1,6 @@
 package org.tabletennis.project.game
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -8,16 +9,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
 import org.tabletennis.project.network.WebSocketManager
-import androidx.compose.animation.core.*
-import androidx.compose.ui.geometry.Offset
+import kotlin.math.sqrt
 import kotlin.random.Random
 
 @Composable
@@ -29,69 +29,71 @@ fun PingPongTable(
     var score2 by remember { mutableStateOf(0) }
 
     var paddleY by remember { mutableStateOf(0f) }
-    var opponentPaddleY by remember { mutableStateOf(0f) }
 
-    // Current ball position (animated)
-    var ballX by remember { mutableStateOf(0f) }
-    var ballY by remember { mutableStateOf(0f) }
+    val (initialTableX, initialTableZ) = remember {
+        GameCoordinates.mapGameToTable(0f, -99f)
+    }
 
-    // Target ball position (where the ball is moving to)
-    var targetBallX by remember { mutableStateOf(0f) }
-    var targetBallY by remember { mutableStateOf(0f) }
+    var ballX by remember { mutableStateOf(initialTableX) }
+    var ballY by remember { mutableStateOf(initialTableZ) }
 
-    // Previous ball position (where the ball is moving from)
-    var previousBallX by remember { mutableStateOf(0f) }
-    var previousBallY by remember { mutableStateOf(0f) }
+    var targetBallX by remember { mutableStateOf(initialTableX) }
+    var targetBallY by remember { mutableStateOf(initialTableZ) }
+
+    var previousBallX by remember { mutableStateOf(initialTableX) }
+    var previousBallY by remember { mutableStateOf(initialTableZ) }
 
     var ballVelocity by remember { mutableStateOf(0f) }
 
-    // Animation progress (0.0 to 1.0)
     val animationProgress = remember { Animatable(initialValue = 1f) }
 
-    // Control point for bezier curve (for curved ball paths)
     var controlPointX by remember { mutableStateOf(0f) }
     var controlPointY by remember { mutableStateOf(0f) }
-
-    // Whether to use a curved path for the current animation
     var useCurvedPath by remember { mutableStateOf(false) }
 
     val collisionEvent by webSocketManager.collisionEvent.collectAsState()
 
     LaunchedEffect(collisionEvent) {
         collisionEvent?.let { event ->
-            val (mappedX, mappedZ) = GameCoordinates.mapGameToTable(event.x, event.y)
+            if (event.v > 0f) {
+                previousBallX = ballX
+                previousBallY = ballY
 
-            previousBallX = ballX
-            previousBallY = ballY
+                val (mappedTargetX, _) = GameCoordinates.mapGameToTable(event.x, 0f)
+                targetBallX = mappedTargetX
 
-            targetBallX = mappedX
-            targetBallY = mappedZ
-            ballVelocity = event.v
+                val targetGameY = if (event.y > 0) -99f else 99f
 
-            useCurvedPath = Random.nextFloat() < 0.3f
+                val (_, mappedTargetZ) = GameCoordinates.mapGameToTable(0f, targetGameY)
+                targetBallY = mappedTargetZ
 
-            if (useCurvedPath) {
-                val dx = targetBallX - previousBallX
-                val dy = targetBallY - previousBallY
+                ballVelocity = event.v
 
-                val perpX = -dy
-                val perpY = dx
+                useCurvedPath = Random.nextFloat() < 0.3f
 
-                val length = kotlin.math.sqrt(perpX * perpX + perpY * perpY)
-                val scale = if (length > 0) Random.nextFloat() * 100f + 50f else 0f
+                if (useCurvedPath) {
+                    val dx = targetBallX - previousBallX
+                    val dy = targetBallY - previousBallY
 
-                controlPointX = (previousBallX + targetBallX) / 2f + (perpX / length) * scale
-                controlPointY = (previousBallY + targetBallY) / 2f + (perpY / length) * scale
-            }
+                    val perpX = -dy
+                    val perpY = dx
 
-            animationProgress.snapTo(0f)
-            animationProgress.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(
-                    durationMillis = (3000 / ballVelocity).toInt().coerceIn(300, 1500),
-                    easing = EaseInOutQuad
+                    val length = sqrt(perpX * perpX + perpY * perpY)
+                    val scale = if (length > 0) Random.nextFloat() * 100f + 50f else 0f
+
+                    controlPointX = (previousBallX + targetBallX) / 2f + (perpX / length) * scale
+                    controlPointY = (previousBallY + targetBallY) / 2f + (perpY / length) * scale
+                }
+
+                animationProgress.snapTo(0f)
+                animationProgress.animateTo(
+                    targetValue = 1f,
+                    animationSpec = tween(
+                        durationMillis = (3000 / ballVelocity).toInt().coerceIn(300, 1500),
+                        easing = EaseInOutQuad
+                    )
                 )
-            )
+            }
         }
     }
 
@@ -161,22 +163,16 @@ fun PingPongTable(
             val netHeight = GameCoordinates.TableDims.NET_HEIGHT
             val netOverhang = 20f
 
-            fun adjustZ(z: Float): Float = if (playerNumber == 2) -z else z
+            fun project(x: Float, y: Float, z: Float): Offset {
+                val effectiveX = if (playerNumber == 2) -x else x
+                val effectiveZ = if (playerNumber == 2) -z else z
+                return GameCoordinates.project3DToScreen(effectiveX, y, effectiveZ, w, h)
+            }
 
-            val p1 = GameCoordinates.project3DToScreen(-halfW, 0f, adjustZ(-halfL), w, h)
-            val p2 = GameCoordinates.project3DToScreen(halfW, 0f, adjustZ(-halfL), w, h)
-            val p3 = GameCoordinates.project3DToScreen(halfW, 0f, adjustZ(halfL), w, h)
-            val p4 = GameCoordinates.project3DToScreen(-halfW, 0f, adjustZ(halfL), w, h)
-
-            val pTop1 = GameCoordinates.project3DToScreen(-halfW, 0f, adjustZ(-halfL), w, h)
-            val pTop2 = GameCoordinates.project3DToScreen(halfW, 0f, adjustZ(-halfL), w, h)
-            val pTop3 = GameCoordinates.project3DToScreen(halfW, 0f, adjustZ(-halfL), w, h)
-            val pTop4 = GameCoordinates.project3DToScreen(-halfW, 0f, adjustZ(-halfL), w, h)
-
-            val pBottom1 = GameCoordinates.project3DToScreen(-halfW, 0f, adjustZ(halfL), w, h)
-            val pBottom2 = GameCoordinates.project3DToScreen(halfW, 0f, adjustZ(halfL), w, h)
-            val pBottom3 = GameCoordinates.project3DToScreen(halfW, 0f, adjustZ(halfL), w, h)
-            val pBottom4 = GameCoordinates.project3DToScreen(-halfW, 0f, adjustZ(halfL), w, h)
+            val p1 = project(-halfW, 0f, -halfL)
+            val p2 = project(halfW, 0f, -halfL)
+            val p3 = project(halfW, 0f, halfL)
+            val p4 = project(-halfW, 0f, halfL)
 
             val tablePath = Path().apply {
                 moveTo(p1.x, p1.y)
@@ -188,50 +184,14 @@ fun PingPongTable(
             drawPath(tablePath, tableColor)
             drawPath(tablePath, Color.White, style = Stroke(width = 2f))
 
-            val topBufferPath = Path().apply {
-                moveTo(pTop1.x, pTop1.y)
-                lineTo(pTop2.x, pTop2.y)
-                lineTo(pTop3.x, pTop3.y)
-                lineTo(pTop4.x, pTop4.y)
-                close()
-            }
-            drawPath(topBufferPath, tableColor.copy(alpha = 0.7f))
-            drawPath(topBufferPath, Color.White.copy(alpha = 0.5f), style = Stroke(width = 1f))
-            val bottomBufferPath = Path().apply {
-                moveTo(pBottom1.x, pBottom1.y)
-                lineTo(pBottom2.x, pBottom2.y)
-                lineTo(pBottom3.x, pBottom3.y)
-                lineTo(pBottom4.x, pBottom4.y)
-                close()
-            }
-            drawPath(bottomBufferPath, tableColor.copy(alpha = 0.7f))
-            drawPath(bottomBufferPath, Color.White.copy(alpha = 0.5f), style = Stroke(width = 1f))
-
-            val centerLineStart = GameCoordinates.project3DToScreen(0f, 0f, adjustZ(-halfL), w, h)
-            val centerLineEnd = GameCoordinates.project3DToScreen(0f, 0f, adjustZ(halfL), w, h)
-
-            val centerLineMainStart = GameCoordinates.project3DToScreen(0f, 0f, adjustZ(-halfL), w, h)
-            val centerLineMainEnd = GameCoordinates.project3DToScreen(0f, 0f, adjustZ(halfL), w, h)
+            val centerLineStart = project(0f, 0f, -halfL)
+            val centerLineEnd = project(0f, 0f, halfL)
 
             drawLine(
                 color = centerLineColor,
-                start = centerLineMainStart,
-                end = centerLineMainEnd,
-                strokeWidth = 2f
-            )
-
-            drawLine(
-                color = centerLineColor.copy(alpha = 0.5f),
                 start = centerLineStart,
-                end = centerLineMainStart,
-                strokeWidth = 1.5f
-            )
-
-            drawLine(
-                color = centerLineColor.copy(alpha = 0.5f),
-                start = centerLineMainEnd,
                 end = centerLineEnd,
-                strokeWidth = 1.5f
+                strokeWidth = 2f
             )
 
             val netZ = 0f
@@ -245,8 +205,8 @@ fun PingPongTable(
                 val fraction = i.toFloat() / verticalStruts
                 val xPos = netLeftX + (netRightX - netLeftX) * fraction
 
-                val top = GameCoordinates.project3DToScreen(xPos, netHeight, adjustZ(netZ), w, h)
-                val bot = GameCoordinates.project3DToScreen(xPos, 0f, adjustZ(netZ), w, h)
+                val top = project(xPos, netHeight, netZ)
+                val bot = project(xPos, 0f, netZ)
 
                 drawLine(netMeshColor, top, bot, strokeWidth = 1f)
             }
@@ -255,52 +215,27 @@ fun PingPongTable(
                 val fraction = i.toFloat() / horizontalStruts
                 val yPos = netHeight * fraction
 
-                val left = GameCoordinates.project3DToScreen(netLeftX, yPos, adjustZ(netZ), w, h)
-                val right = GameCoordinates.project3DToScreen(netRightX, yPos, adjustZ(netZ), w, h)
+                val left = project(netLeftX, yPos, netZ)
+                val right = project(netRightX, yPos, netZ)
 
                 drawLine(netMeshColor, left, right, strokeWidth = 1f)
             }
 
-            val pNetLeftBot = GameCoordinates.project3DToScreen(netLeftX, 0f, adjustZ(netZ), w, h)
-            val pNetRightBot = GameCoordinates.project3DToScreen(netRightX, 0f, adjustZ(netZ), w, h)
-            val pNetLeftTop = GameCoordinates.project3DToScreen(netLeftX, netHeight, adjustZ(netZ), w, h)
-            val pNetRightTop = GameCoordinates.project3DToScreen(netRightX, netHeight, adjustZ(netZ), w, h)
+            val pNetLeftBot = project(netLeftX, 0f, netZ)
+            val pNetRightBot = project(netRightX, 0f, netZ)
+            val pNetLeftTop = project(netLeftX, netHeight, netZ)
+            val pNetRightTop = project(netRightX, netHeight, netZ)
 
             drawLine(netPostColor, pNetLeftBot, pNetLeftTop, strokeWidth = 6f)
             drawLine(netPostColor, pNetRightBot, pNetRightTop, strokeWidth = 6f)
             drawLine(netTapeColor, pNetLeftTop, pNetRightTop, strokeWidth = 3f)
             drawLine(netTapeColor, pNetLeftBot, pNetRightBot, strokeWidth = 2f)
 
-            if (useCurvedPath && previousBallX != 0f && previousBallY != 0f && targetBallX != 0f && targetBallY != 0f) {
-                val controlPoint = GameCoordinates.project3DToScreen(
-                    controlPointX,
-                    30f,
-                    adjustZ(controlPointY),
-                    w, h
-                )
-
-                val startPoint = GameCoordinates.project3DToScreen(
-                    previousBallX,
-                    30f,
-                    adjustZ(previousBallY),
-                    w, h
-                )
-
-                val endPoint = GameCoordinates.project3DToScreen(
-                    targetBallX,
-                    30f,
-                    adjustZ(targetBallY),
-                    w, h
-                )
-            }
-
-            // Draw the ball
             if (ballX != 0f || ballY != 0f) {
-                val ballPos = GameCoordinates.project3DToScreen(
+                val ballPos = project(
                     ballX,
                     30f,
-                    adjustZ(ballY),
-                    w, h
+                    ballY
                 )
                 drawCircle(Color(0xFFFFFFFF), radius = 15f, center = ballPos)
             }
@@ -308,21 +243,70 @@ fun PingPongTable(
     }
 }
 
-/**
- * Overloaded version of PingPongTable for development mode.
- * This version doesn't require parameters and uses default values.
- */
 @Composable
 fun PingPongTable() {
-    // Create a dummy WebSocketManager for development
     val webSocketManager = remember { WebSocketManager() }
-
-    // Use player 1 as default for development
     val playerNumber = 1
 
-    // Call the main PingPongTable with the development parameters
     PingPongTable(
         webSocketManager = webSocketManager,
         playerNumber = playerNumber
     )
+}
+
+public class GameCoordinates {
+    object TableDims {
+        const val WIDTH = 1525f
+        const val LENGTH = 1700f
+        const val NET_HEIGHT = 135f
+
+        const val GAME_TOP = 100f
+        const val GAME_LEFT = -100f
+        const val GAME_RIGHT = 100f
+
+    }
+
+    companion object {
+        fun mapGameToTable(gameX: Float, gameY: Float): Pair<Float, Float> {
+            val tableX = gameX * (TableDims.WIDTH / 2) / TableDims.GAME_RIGHT
+
+            val effectiveLength = TableDims.LENGTH - 2
+            val tableZ = gameY * (effectiveLength / 2) / TableDims.GAME_TOP
+
+            return Pair(tableX, tableZ)
+        }
+
+        fun mapTableToGame(tableX: Float, tableZ: Float): Pair<Float, Float> {
+            val gameX = tableX * TableDims.GAME_RIGHT / (TableDims.WIDTH / 2)
+
+            val effectiveLength = TableDims.LENGTH - 2
+            val gameY = tableZ * TableDims.GAME_TOP / (effectiveLength / 2)
+
+            return Pair(gameX, gameY)
+        }
+
+        fun project3DToScreen(
+            x: Float, y: Float, z: Float,
+            screenWidth: Float, screenHeight: Float
+        ): Offset {
+            val cx = screenWidth / 2
+            val cy = screenHeight / 2
+
+            val cameraDist = 4500f
+            val focalLength = 2500f
+            val tilt = 0.8f
+
+            val currentZ = z + cameraDist
+            val safeZ = if (currentZ < 1f) 1f else currentZ
+            val scale = focalLength / safeZ
+
+            val screenX = cx + (x * scale)
+
+            val verticalOffset = -(cy * 0.1f)
+
+            val screenY = cy + verticalOffset - (y * scale) - (z * tilt * scale)
+
+            return Offset(screenX, screenY)
+        }
+    }
 }

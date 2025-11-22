@@ -11,11 +11,6 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.tabletennis.project.game.GameFlow
 import org.tabletennis.project.game.PingPongTable
 
-/**
- * Development mode flag
- * Set to true to show only the PingPongTable for development
- * Set to false to show the full GameFlow for normal usage
- */
 private const val DEVELOPMENT_MODE = true
 
 @Composable
