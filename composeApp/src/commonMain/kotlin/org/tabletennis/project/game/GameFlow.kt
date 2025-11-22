@@ -47,6 +47,7 @@ fun GameFlow() {
 
         GameState.PLAYING -> {
             if (playerNumber > 0) {
+                // Direct Composable call (updated from previous step)
                 PingPongTable(
                     webSocketManager = webSocketManager,
                     playerNumber = playerNumber

@@ -13,6 +13,24 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.jsonObject
+
+@Serializable
+data class CollisionEvent(
+    val x: Float,
+    val y: Float,
+    val v: Float,
+    @SerialName("goal_x") val goalX: Float)
+
+@Serializable
+data class WebSocketMessage(
+    val type: String,
+    val data: CollisionEvent? = null
+)
 
 class WebSocketManager {
 
@@ -22,8 +40,16 @@ class WebSocketManager {
     private val _bothPlayersConnected = MutableStateFlow(false)
     val bothPlayersConnected: StateFlow<Boolean> = _bothPlayersConnected
 
+    private val _collisionEvent = MutableStateFlow<CollisionEvent?>(null)
+    val collisionEvent: StateFlow<CollisionEvent?> = _collisionEvent
+
     private val client = HttpClient {
         install(WebSockets)
+    }
+
+    private val json = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
     }
 
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
@@ -47,10 +73,20 @@ class WebSocketManager {
                     for (frame in incoming) {
                         if (frame is Frame.Text) {
                             val message = frame.readText()
-
+                            println(message)
                             if (message == "start") {
                                 _bothPlayersConnected.value = true
-                            }
+                            } else if (message.contains("collision")) {
+                                val rootObject = json.parseToJsonElement(message).jsonObject
+
+                                val dataObject = rootObject["data"]
+
+                                if (dataObject != null) {
+                                    val event = json.decodeFromJsonElement<CollisionEvent>(dataObject)
+
+                                    _collisionEvent.value = event
+                                    println("Parsed Collision: $event")
+                            }}
                         }
                     }
                 }

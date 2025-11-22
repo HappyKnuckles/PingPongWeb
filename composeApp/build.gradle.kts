@@ -6,6 +6,11 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.composeHotReload)
+
+    // 1. ADD SERIALIZATION PLUGIN
+    // NOTE: The version (2.1.0) should match your Kotlin version.
+    // If you are using Kotlin 2.0.20, change this to "2.0.20"
+    kotlin("plugin.serialization") version "2.1.0"
 }
 
 kotlin {
@@ -23,7 +28,7 @@ kotlin {
     }
 
     sourceSets {
-        // FIX: Use stable version 3.0.1 instead of beta-1
+        // Use stable version 3.0.1
         val ktorVersion = "3.0.1"
 
         commonMain.dependencies {
@@ -36,6 +41,9 @@ kotlin {
             // Ktor Core & WebSockets
             implementation("io.ktor:ktor-client-core:$ktorVersion")
             implementation("io.ktor:ktor-client-websockets:$ktorVersion")
+
+            // 2. ADD SERIALIZATION JSON LIBRARY
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
             implementation(compose.components.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
