@@ -46,7 +46,7 @@ fun WaitingScreen(playerNumber: Int) {
                     .fillMaxWidth()
             ) {
                 Text(
-                    "You are $playerNumber",
+                    "You are player $playerNumber",
                     fontSize = 20.sp,
                     color = playerColor,
                     fontWeight = FontWeight.Bold

@@ -13,31 +13,22 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonObject
 
 @Serializable
-data class CollisionEvent(
-    val x: Float,
-    val y: Float,
-    val v: Float,
-    @SerialName("goal_x") val goalX: Float? = null)
-
-@Serializable
 data class CoordinatesEvent(
     val x: Float,
     val y: Float,
     val v: Float
-    // @SerialName("goal_x") val goalX: Float? = null
 )
 
 @Serializable
-data class WebSocketMessage(
-    val type: String,
-    val data: CollisionEvent? = null
+data class ScoreEvent(
+    val score: List<Int>, // Receives [playerScore, opponentScore]
+    val message: String
 )
 
 class WebSocketManager {
@@ -48,11 +39,11 @@ class WebSocketManager {
     private val _bothPlayersConnected = MutableStateFlow(false)
     val bothPlayersConnected: StateFlow<Boolean> = _bothPlayersConnected
 
-    private val _collisionEvent = MutableStateFlow<CollisionEvent?>(null)
-    val collisionEvent: StateFlow<CollisionEvent?> = _collisionEvent
-
     private val _coordinatesEvent = MutableStateFlow<CoordinatesEvent?>(null)
     val coordinatesEvent: StateFlow<CoordinatesEvent?> = _coordinatesEvent
+
+    private val _scoreEvent = MutableStateFlow<ScoreEvent?>(null)
+    val scoreEvent: StateFlow<ScoreEvent?> = _scoreEvent
 
     private val client = HttpClient {
         install(WebSockets)
@@ -84,30 +75,32 @@ class WebSocketManager {
                     for (frame in incoming) {
                         if (frame is Frame.Text) {
                             val message = frame.readText()
-                            println(message)
+                            println("Received: $message")
+
                             if (message == "start") {
                                 _bothPlayersConnected.value = true
-                            } else if (message.contains("collision")) {
-                                val rootObject = json.parseToJsonElement(message).jsonObject
-
-                                val dataObject = rootObject["data"]
-
-                                if (dataObject != null) {
-                                    val event = json.decodeFromJsonElement<CollisionEvent>(dataObject)
-
-                                    _collisionEvent.value = event
-                                    println("Parsed Collision: $event")
-                            }} else if (message.contains("coordinates")) {
-                                val rootObject = json.parseToJsonElement(message).jsonObject
-
-                                val dataObject = rootObject["data"]
-
-                                if (dataObject != null) {
-                                    val event = json.decodeFromJsonElement<CoordinatesEvent>(dataObject)
-
-                                    _coordinatesEvent.value = event
-                                    println("Parsed Coordinates: $event")
-                            }}
+                            }
+                            else if (message.contains("coordinates")) {
+                                try {
+                                    val rootObject = json.parseToJsonElement(message).jsonObject
+                                    val dataObject = rootObject["data"]
+                                    if (dataObject != null) {
+                                        val event = json.decodeFromJsonElement<CoordinatesEvent>(dataObject)
+                                        _coordinatesEvent.value = event
+                                    }
+                                } catch (e: Exception) {
+                                    println("Error parsing coordinates: ${e.message}")
+                                }
+                            }
+                            else if (message.contains("score")) {
+                                try {
+                                    val event = json.decodeFromString<ScoreEvent>(message)
+                                    _scoreEvent.value = event
+                                    println("Parsed Score: $event")
+                                } catch (e: Exception) {
+                                    println("Error parsing score: ${e.message}")
+                                }
+                            }
                         }
                     }
                 }

@@ -32,17 +32,7 @@ fun PingPongTable(
     var ballY by remember { mutableStateOf(0f) }
     var ballVelocity by remember { mutableStateOf(0f) }
 
-    val collisionEvent by webSocketManager.collisionEvent.collectAsState()
     val coordinatesEvent by webSocketManager.coordinatesEvent.collectAsState()
-
-    LaunchedEffect(collisionEvent) {
-        collisionEvent?.let { event ->
-            val (mappedX, mappedZ) = GameCoordinates.mapGameToTable(event.x, event.y)
-            ballX = mappedX
-            ballY = mappedZ
-            ballVelocity = event.v
-        }
-    }
 
     LaunchedEffect(coordinatesEvent) {
         coordinatesEvent?.let { event ->
