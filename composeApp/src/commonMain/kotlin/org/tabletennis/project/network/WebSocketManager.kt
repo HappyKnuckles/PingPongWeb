@@ -75,8 +75,6 @@ class WebSocketManager {
                     for (frame in incoming) {
                         if (frame is Frame.Text) {
                             val message = frame.readText()
-                            println("Received: $message")
-
                             if (message == "start") {
                                 _bothPlayersConnected.value = true
                             }

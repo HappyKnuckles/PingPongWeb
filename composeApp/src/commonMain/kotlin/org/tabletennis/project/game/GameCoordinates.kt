@@ -22,15 +22,6 @@ public class GameCoordinates {
             return Pair(tableX, tableZ)
         }
 
-        fun mapTableToGame(tableX: Float, tableZ: Float): Pair<Float, Float> {
-            val gameX = tableX * TableDims.GAME_RIGHT / (TableDims.WIDTH / 2)
-
-            val effectiveLength = TableDims.LENGTH - 2
-            val gameY = tableZ * TableDims.GAME_TOP / (effectiveLength / 2)
-
-            return Pair(gameX, gameY)
-        }
-
         fun project3DToScreen(
             x: Float, y: Float, z: Float,
             screenWidth: Float, screenHeight: Float
