@@ -1,13 +1,12 @@
 import androidx.compose.ui.geometry.Offset
 
-public class GameCoordinates {
+class GameCoordinates {
     object TableDims {
         const val WIDTH = 1525f
         const val LENGTH = 1700f
         const val NET_HEIGHT = 135f
 
         const val GAME_TOP = 100f
-        const val GAME_LEFT = -100f
         const val GAME_RIGHT = 100f
 
     }
@@ -29,7 +28,7 @@ public class GameCoordinates {
             val cx = screenWidth / 2
             val cy = screenHeight / 2
 
-            val cameraDist = 4500f
+            val cameraDist = 8000f
 
             val focalLength = 2500f
 

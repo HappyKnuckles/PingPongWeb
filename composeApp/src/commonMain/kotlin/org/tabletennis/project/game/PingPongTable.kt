@@ -26,12 +26,15 @@ private object GameColors {
     val FloorGradient = listOf(Color(0xFF333333), Color(0xFF111111))
     val TableBase = Color(0xFF1565C0)
     val TableDark = Color(0xFF0D47A1)
+    val TableSide = Color(0xFF0A3880)
+    val TableBottom = Color(0xFF072A5C)
     val CenterLine = Color.White.copy(alpha = 0.8f)
     val NetPost = Color(0xFF444444)
     val NetMesh = Color.White.copy(alpha = 0.3f)
     val NetTape = Color.White
     val Leg = Color(0xFF222222)
-    val Shadow = Color.Black.copy(alpha = 0.4f)
+    val LegHighlight = Color(0xFF444444)
+    val Shadow = Color.Black.copy(alpha = 0.5f)
     val BallShadow = Color.Black.copy(alpha = 0.3f)
     val TextWhite = Color.White
     val TextGray = Color.Gray
@@ -87,28 +90,6 @@ fun PingPongTable(
         Spacer(
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(Unit) {
-                    detectDragGestures { _, dragAmount ->
-                        val dragScale = GameCoordinates.TableDims.WIDTH / size.width
-
-                        // FIX APPLIED HERE:
-                        // Invert the drag direction for Player 2.
-                        // If Player 2 drags "Right" on screen, the world coordinate should go "Left" (Negative)
-                        val directionMultiplier = if (playerNumber == 2) -1f else 1f
-
-                        // Applying the multiplier to the calculation
-                        val scaledDragAmount = (dragAmount.y * dragScale) * directionMultiplier
-
-                        val (leftBoundary, _) = GameCoordinates.mapGameToTable(
-                            GameCoordinates.TableDims.GAME_LEFT + 20f,
-                            0f
-                        )
-                        val (rightBoundary, _) = GameCoordinates.mapGameToTable(
-                            GameCoordinates.TableDims.GAME_RIGHT - 20f,
-                            0f
-                        )
-                    }
-                }
                 .drawWithCache {
                     val w = size.width
                     val h = size.height
@@ -117,7 +98,9 @@ fun PingPongTable(
                     val halfL = GameCoordinates.TableDims.LENGTH / 2
                     val netHeight = GameCoordinates.TableDims.NET_HEIGHT
                     val tableHeightFromGround = 760f
-                    val legInset = 50f
+                    val tableThickness = 25f
+                      val legInset = 50f
+                    val legWidth = 12f
                     val floorY = -tableHeightFromGround
 
                     fun project(x: Float, y: Float, z: Float): Offset {
@@ -141,9 +124,35 @@ fun PingPongTable(
                     val tablePath = Path().apply {
                         moveTo(t1.x, t1.y); lineTo(t2.x, t2.y); lineTo(t3.x, t3.y); lineTo(t4.x, t4.y); close()
                     }
+
+                    val b1 = project(-halfW, -tableThickness, -halfL)
+                    val b2 = project(halfW, -tableThickness, -halfL)
+                    val b3 = project(halfW, -tableThickness, halfL)
+                    val b4 = project(-halfW, -tableThickness, halfL)
+                    val tableBottomPath = Path().apply {
+                        moveTo(b1.x, b1.y); lineTo(b2.x, b2.y); lineTo(b3.x, b3.y); lineTo(b4.x, b4.y); close()
+                    }
+
+                    val frontSidePath = Path().apply {
+                        moveTo(t1.x, t1.y); lineTo(t2.x, t2.y); lineTo(b2.x, b2.y); lineTo(b1.x, b1.y); close()
+                    }
+
+                    val backSidePath = Path().apply {
+                        moveTo(t3.x, t3.y); lineTo(t4.x, t4.y); lineTo(b4.x, b4.y); lineTo(b3.x, b3.y); close()
+                    }
+
+                    val leftSidePath = Path().apply {
+                        moveTo(t4.x, t4.y); lineTo(t1.x, t1.y); lineTo(b1.x, b1.y); lineTo(b4.x, b4.y); close()
+                    }
+
+                    val rightSidePath = Path().apply {
+                        moveTo(t2.x, t2.y); lineTo(t3.x, t3.y); lineTo(b3.x, b3.y); lineTo(b2.x, b2.y); close()
+                    }
+
                     val tableGradient = Brush.linearGradient(
                         colors = listOf(GameColors.TableDark, GameColors.TableBase),
-                        start = t1, end = t4
+                        start = t1,
+                        end = t4
                     )
 
                     val legsCoords = listOf(
@@ -184,12 +193,30 @@ fun PingPongTable(
 
                     onDrawBehind {
                         drawPath(shadowPath, GameColors.Shadow)
+
                         legLines.forEach { (start, end) ->
-                            drawLine(GameColors.Leg, start, end, strokeWidth = 12f)
+                            drawLine(GameColors.Leg, start, end, strokeWidth = legWidth)
+
+                            val highlightOffset = Offset(2f, 2f)
+                            drawLine(
+                                GameColors.LegHighlight, 
+                                start.plus(highlightOffset), 
+                                end.plus(highlightOffset), 
+                                strokeWidth = legWidth / 3
+                            )
                         }
 
+                        drawPath(tableBottomPath, GameColors.TableBottom)
+
+                        drawPath(frontSidePath, GameColors.TableSide)
+                        drawPath(backSidePath, GameColors.TableSide)
+                        drawPath(leftSidePath, GameColors.TableSide)
+                        drawPath(rightSidePath, GameColors.TableSide)
+
                         drawPath(tablePath, tableGradient)
+
                         drawPath(tablePath, Color.White, style = Stroke(width = 2f))
+
                         drawLine(GameColors.CenterLine, cStart, cEnd, strokeWidth = 2f)
 
                         netVLines.forEach { (s, e) -> drawLine(GameColors.NetMesh, s, e, strokeWidth = 1f) }
@@ -201,7 +228,7 @@ fun PingPongTable(
                         drawLine(GameColors.NetTape, pNetLeftBot, pNetRightBot, strokeWidth = 2f)
 
                         if (ballX != 0f || ballY != 0f) {
-                            val ballRadius = 15f
+                            val ballRadius = 10f
 
                             val ballShadowPos = project(ballX + 5f, 0f, ballY + 5f)
                             drawCircle(

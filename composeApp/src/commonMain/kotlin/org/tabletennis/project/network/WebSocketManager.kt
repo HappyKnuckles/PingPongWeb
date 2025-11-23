@@ -27,7 +27,7 @@ data class CoordinatesEvent(
 
 @Serializable
 data class ScoreEvent(
-    val score: List<Int>, // Receives [playerScore, opponentScore]
+    val score: List<Int>,
     val message: String
 )
 
