@@ -12,8 +12,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.tabletennis.project.network.WebSocketManager
@@ -31,6 +35,7 @@ private object GameColors {
     val BallShadow = Color.Black.copy(alpha = 0.3f)
     val TextWhite = Color.White
     val TextGray = Color.Gray
+    val MessageGold = Color(0xFFFFD700)
 }
 
 @Composable
@@ -40,16 +45,16 @@ fun PingPongTable(
 ) {
     var score1 by remember { mutableIntStateOf(0) }
     var score2 by remember { mutableIntStateOf(0) }
+    var scoreMessage by remember { mutableStateOf("") }
 
     var paddleY by remember { mutableFloatStateOf(0f) }
-
-    var opponentPaddleY by remember { mutableFloatStateOf(0f) }
 
     var ballX by remember { mutableFloatStateOf(0f) }
     var ballY by remember { mutableFloatStateOf(0f) }
     var ballVelocity by remember { mutableFloatStateOf(0f) }
 
     val coordinatesEvent by webSocketManager.coordinatesEvent.collectAsState()
+    val scoreEvent by webSocketManager.scoreEvent.collectAsState()
 
     LaunchedEffect(coordinatesEvent) {
         coordinatesEvent?.let { event ->
@@ -60,10 +65,25 @@ fun PingPongTable(
         }
     }
 
+    LaunchedEffect(scoreEvent) {
+        scoreEvent?.let { event ->
+            if (event.score.size >= 2) {
+                if (playerNumber == 1) {
+                    score1 = event.score[0]
+                    score2 = event.score[1]
+                } else {
+                    score1 = event.score[1]
+                    score2 = event.score[0]
+                }
+                scoreMessage = event.message
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(GameColors.FloorGradient)), // Rendering A
+            .background(Brush.verticalGradient(GameColors.FloorGradient)),
         contentAlignment = Alignment.TopCenter
     ) {
 
@@ -90,7 +110,6 @@ fun PingPongTable(
                     }
                 }
                 .drawWithCache {
-
                     val w = size.width
                     val h = size.height
 
@@ -210,6 +229,8 @@ fun PingPongTable(
         )
 
         ScoreOverlay(score1, score2, playerNumber)
+
+        BigMessageOverlay(scoreMessage)
     }
 }
 
@@ -220,13 +241,42 @@ private fun ScoreOverlay(s1: Int, s2: Int, pNum: Int) {
         Text(
             text = "$s1 : $s2",
             color = GameColors.TextWhite,
-            fontSize = 32.sp
+            fontSize = 32.sp,
+            fontWeight = FontWeight.Bold
         )
         Text(
             text = "You are Player $pNum",
             color = GameColors.TextGray,
             fontSize = 16.sp
         )
+    }
+}
+
+@Composable
+private fun BigMessageOverlay(message: String) {
+    if (message.isNotEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .offset(y = (-50).dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = message,
+                color = GameColors.MessageGold,
+                fontSize = 72.sp,
+                fontWeight = FontWeight.ExtraBold,
+                textAlign = TextAlign.Center,
+                lineHeight = 72.sp,
+                style = TextStyle(
+                    shadow = Shadow(
+                        color = Color.Black.copy(alpha = 0.8f),
+                        offset = Offset(4f, 4f),
+                        blurRadius = 8f
+                    )
+                )
+            )
+        }
     }
 }
 
