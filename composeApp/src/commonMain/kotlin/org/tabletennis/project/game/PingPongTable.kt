@@ -47,11 +47,8 @@ fun PingPongTable(
     var score2 by remember { mutableIntStateOf(0) }
     var scoreMessage by remember { mutableStateOf("") }
 
-    var paddleY by remember { mutableFloatStateOf(0f) }
-
     var ballX by remember { mutableFloatStateOf(0f) }
     var ballY by remember { mutableFloatStateOf(0f) }
-    var ballVelocity by remember { mutableFloatStateOf(0f) }
 
     val coordinatesEvent by webSocketManager.coordinatesEvent.collectAsState()
     val scoreEvent by webSocketManager.scoreEvent.collectAsState()
@@ -61,7 +58,6 @@ fun PingPongTable(
             val (mappedX, mappedZ) = GameCoordinates.mapGameToTable(event.x, event.y)
             ballX = mappedX
             ballY = mappedZ
-            ballVelocity = event.v
             scoreMessage = ""
         }
     }
@@ -94,9 +90,14 @@ fun PingPongTable(
                 .pointerInput(Unit) {
                     detectDragGestures { _, dragAmount ->
                         val dragScale = GameCoordinates.TableDims.WIDTH / size.width
-                        val scaledDragAmount = dragAmount.y * dragScale
 
-                        val newY = paddleY + scaledDragAmount
+                        // FIX APPLIED HERE:
+                        // Invert the drag direction for Player 2.
+                        // If Player 2 drags "Right" on screen, the world coordinate should go "Left" (Negative)
+                        val directionMultiplier = if (playerNumber == 2) -1f else 1f
+
+                        // Applying the multiplier to the calculation
+                        val scaledDragAmount = (dragAmount.y * dragScale) * directionMultiplier
 
                         val (leftBoundary, _) = GameCoordinates.mapGameToTable(
                             GameCoordinates.TableDims.GAME_LEFT + 20f,
@@ -106,8 +107,6 @@ fun PingPongTable(
                             GameCoordinates.TableDims.GAME_RIGHT - 20f,
                             0f
                         )
-
-                        paddleY = newY.coerceIn(leftBoundary, rightBoundary)
                     }
                 }
                 .drawWithCache {
