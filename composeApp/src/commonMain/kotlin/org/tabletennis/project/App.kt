@@ -11,7 +11,7 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.tabletennis.project.game.GameFlow
 import org.tabletennis.project.game.PingPongTable
 
-private const val DEVELOPMENT_MODE = true
+private const val DEVELOPMENT_MODE = false
 
 @Composable
 @Preview

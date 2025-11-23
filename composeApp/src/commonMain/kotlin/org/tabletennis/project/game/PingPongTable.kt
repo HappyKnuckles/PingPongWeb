@@ -62,6 +62,7 @@ fun PingPongTable(
             ballX = mappedX
             ballY = mappedZ
             ballVelocity = event.v
+            scoreMessage = ""
         }
     }
 
